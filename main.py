@@ -3,30 +3,27 @@ import requests
 from rapidfuzz import fuzz, process
 from collections import OrderedDict
 import json
-
-tenant = "68dfd3eceee9d45175067cbd"
+import os
 
 app = Flask(__name__)
-
 app.config["JSON_SORT_KEYS"] = False
 
 BASE_URL = "https://backend-white-water-1093.fly.dev/api/chatbot"
 
-def get_data(route, tenantId):
+
+def get_data(route, tenant_id):
     try:
-        url = f"{BASE_URL}/{route}/{tenantId}"
-        payload = {}
-        headers = { 'token': 'cb_8a72e5f9b3d1c0e6' }
-        response = requests.request("GET", url, headers=headers, data=payload)
+        url = f"{BASE_URL}/{route}/{tenant_id}"
+        headers = {'token': 'cb_8a72e5f9b3d1c0e6'}
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        return response.json()['data']
+        return response.json().get('data', [])
     except requests.exceptions.RequestException as e:
         print(f"Error fetching {route}: {e}")
         return []
 
 
 def find_best_match(tenant, name, data_type, field="name", threshold=20):
-
     if data_type == "product":
         all_items = get_data("product", tenant)
         for item in all_items:
@@ -39,7 +36,7 @@ def find_best_match(tenant, name, data_type, field="name", threshold=20):
     if not names:
         return None, 0
 
-    best_match, score, _ = process.extractOne(name, names, scorer=fuzz.token_sort_ratio)
+    best_match, score, _ = process.extractOne(name.lower(), names, scorer=fuzz.token_sort_ratio)
 
     if score >= threshold:
         for item in all_items:
@@ -48,11 +45,15 @@ def find_best_match(tenant, name, data_type, field="name", threshold=20):
                 return item, score
     return None, score
 
+
 @app.route("/test", methods=["POST"])
 def post():
     data = request.get_json()
-    text = data.get("text", "")
-    tenant = data['tenant']
+    text = data.get("text", "").strip()
+    tenant = data.get("tenant")
+
+    if not tenant:
+        return jsonify({"error": "Missing tenant ID"}), 400
 
     lines = [l.strip() for l in text.split("\n") if l.strip()]
     if not lines:
@@ -100,17 +101,14 @@ def post():
         ("products", products)
     ])
 
-    return app.response_class(
-        response=json.dumps(response, indent=4),
-        mimetype="application/json"
-    )
+    return jsonify(response)
 
 
-@app.route('/hc',methods=['GET'])
-def hc():
-    data = {"message":"server is runnig fine"}
-    return app.response_class(
-        response=json.dumps(data, indent=4),
-        mimetype="application/json"
-    )
-app.run()
+@app.route('/hc', methods=['GET'])
+def health_check():
+    return jsonify({"message": "Server is running fine"})
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)

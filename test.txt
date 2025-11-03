@@ -1,0 +1,9 @@
+https://backend-white-water-1093.fly.dev/api/chatbot/size/tenantId
+
+https://backend-white-water-1093.fly.dev/api/chatbot/product/tenantId
+
+https://backend-white-water-1093.fly.dev/api/chatbot/client/tenantId
+
+pass token key in headers (Chatbot token)
+
+token cb_8a72e5f9b3d1c0e6

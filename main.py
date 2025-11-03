@@ -106,4 +106,11 @@ def post():
     )
 
 
+@app.route('/hc',methods=['GET'])
+def hc():
+    data = {"message":"server is runnig fine"}
+    return app.response_class(
+        response=json.dumps(data, indent=4),
+        mimetype="application/json"
+    )
 app.run()

@@ -7,6 +7,7 @@ import json
 tenant = "68dfd3eceee9d45175067cbd"
 
 app = Flask(__name__)
+
 app.config["JSON_SORT_KEYS"] = False
 
 BASE_URL = "https://backend-white-water-1093.fly.dev/api/chatbot"

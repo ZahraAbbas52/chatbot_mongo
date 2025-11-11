@@ -20,7 +20,11 @@ def send_whatsapp_message(phone_number: str, text: str):
     url = f"https://api.green-api.com/waInstance{GREEN_INSTANCE_ID}/sendMessage/{GREEN_API_TOKEN}"
     payload = {"chatId": f"{phone_number}@c.us", "message": text}
     try:
-        requests.post(url, json=payload)
+        resp = requests.post(url, json=payload)
+        if resp.status_code == 200:
+            print(f" Message sent to {phone_number}")
+        else:
+            print(f" Failed to send message to {phone_number}: {resp.text}")
     except Exception as e:
         print(f" Error sending WhatsApp message: {e}")
 
@@ -226,23 +230,32 @@ def chat_route():
 @app.route("/whatsapp_webhook", methods=["POST"])
 def whatsapp_webhook():
     data = request.get_json()
-    print("Incoming WhatsApp data:", json.dumps(data, indent=4))
+    print("📩 Incoming WhatsApp data:", json.dumps(data, indent=4))
 
     raw_sender = data.get("senderData", {}).get("sender", "")
     sender_number = raw_sender.split("@")[0] if raw_sender else ""
 
     if sender_number not in ALLOWED_NUMBERS:
-        print(f" Ignored message from {sender_number} (not allowed)")
+        print(f"⚠ Ignored message from {sender_number} (not allowed)")
         return jsonify({"status": "ignored", "reason": "not_allowed"})
 
     message_data = data.get("messageData", {})
-    user_input = message_data.get("textMessageData", {}).get("textMessage", "")
+    user_input = ""
+
+    if "textMessageData" in message_data:
+        user_input = message_data.get("textMessageData", {}).get("textMessage", "")
+    elif "extendedTextMessageData" in message_data:
+        user_input = message_data.get("extendedTextMessageData", {}).get("text", "")
+
     if not user_input:
         return jsonify({"status": "ignored", "reason": "no_message"})
 
     response = chat_logic(user_input, TENANT_ID)
-    send_whatsapp_message(sender_number, response.get("bot", ""))
-    return jsonify({"status": "success"})
+    bot_text = response.get("bot", "Sorry, something went wrong.")
+    print(f"💬 Replying to {sender_number}: {bot_text}")
+
+    send_whatsapp_message(sender_number, bot_text)
+    return jsonify({"status": "success", "reply_sent": bot_text})
 
 
 @app.route("/hc", methods=["GET"])

@@ -8,7 +8,6 @@ from collections import OrderedDict
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
 
-
 GREEN_INSTANCE_ID = "7107376417"
 GREEN_API_TOKEN = "e5808c2dca184e87868d28fe962121d5f6677825214646f893"
 TENANT_ID = "68dfd3eceee9d45175067cbd"
@@ -28,7 +27,6 @@ def send_whatsapp_message(phone_number: str, text: str):
     except Exception as e:
         print(f" Error sending WhatsApp message: {e}")
 
-
 def get_data(route: str, tenant_id: str):
     try:
         url = f"{BASE_URL}/{route}/{tenant_id}"
@@ -39,7 +37,6 @@ def get_data(route: str, tenant_id: str):
         print(f" Error fetching {route}: {e}")
         return []
 
-
 def post_data(route: str, payload: dict):
     try:
         url = f"{BASE_URL}/{route}"
@@ -49,7 +46,6 @@ def post_data(route: str, payload: dict):
     except Exception as e:
         print(f" Error posting {route}: {e}")
         return []
-
 
 def fuzzy_match(name: str, items: list, key: str = "name", threshold: int = 70):
     names = [i.get(key, "") for i in items]
@@ -71,10 +67,8 @@ def fuzzy_match(name: str, items: list, key: str = "name", threshold: int = 70):
 
     return None, score
 
-
 def chat_logic(user_input: str, tenant: str):
     text_lower = user_input.lower().strip()
-
 
     if text_lower in ["hi", "hello", "hey", "salam", "assalamualaikum"]:
         return OrderedDict([
@@ -82,16 +76,16 @@ def chat_logic(user_input: str, tenant: str):
             ("commands", [
                 "Type 'get all products' to see all products.",
                 "Type 'get all clients' to see all clients.",
-                "Type 'create invoice' to make a new invoice."
+                "Type 'create invoice' to make a new invoice.",
+                "Type 'get invoice by client' to fetch invoices of a client.",
+                "Type 'get last 5 invoices' to fetch last 5 invoices."
             ])
         ])
-
 
     if "get all products" in text_lower:
         products = get_data("product", tenant)
         if not products:
             return {"bot": "No products found."}
-
         product_list = [
             OrderedDict([
                 ("product_id", str(p.get("_id", ""))),
@@ -100,7 +94,6 @@ def chat_logic(user_input: str, tenant: str):
             ])
             for p in products
         ]
-
         return OrderedDict([
             ("bot", f"Found {len(product_list)} products."),
             ("products", product_list)
@@ -110,15 +103,16 @@ def chat_logic(user_input: str, tenant: str):
         clients = get_data("client", tenant)
         if not clients:
             return {"bot": "No clients found."}
-
         client_list = [
             OrderedDict([
                 ("client_id", str(c.get("_id", ""))),
-                ("name", c.get("name", ""))
+                ("name", c.get("name", "")),
+                ("email", c.get("email", "")),
+                ("contact", c.get("contact", "")),
+                ("address", c.get("address", ""))
             ])
             for c in clients
         ]
-
         return OrderedDict([
             ("bot", f"Found {len(client_list)} clients."),
             ("clients", client_list)
@@ -133,6 +127,35 @@ def chat_logic(user_input: str, tenant: str):
                 "Product2, Quantity, Price"
             )
         }
+
+    if "get last 5 invoices" in text_lower:
+        invoices = get_data("quotation", tenant)
+        invoices_sorted = sorted(invoices, key=lambda x: x.get("created_at", ""), reverse=True)[:5]
+        if not invoices_sorted:
+            return {"bot": "No invoices found."}
+        invoice_texts = [
+            f"- Invoice: {inv.get('title')} | Client: {inv.get('client_name')} | Total: {inv.get('total_amount')}"
+            for inv in invoices_sorted
+        ]
+        return {"bot": "Last 5 invoices:\n" + "\n".join(invoice_texts)}
+
+    if "get invoice by client" in text_lower:
+        clients = get_data("client", tenant)
+        matched_client, score = fuzzy_match(user_input, clients, key="name", threshold=70)
+        if not matched_client:
+            return {"bot": "Please send the client name to get their invoices."}
+
+        client_id = matched_client.get("_id")
+        invoices = get_data("quotation", tenant)
+        client_invoices = [inv for inv in invoices if inv.get("client_id") == client_id]
+        if not client_invoices:
+            return {"bot": f"No invoices found for client '{matched_client.get('name')}'."}
+
+        invoice_texts = [
+            f"- Invoice: {inv.get('title')} | Total Amount: {inv.get('total_amount')}"
+            for inv in client_invoices
+        ]
+        return {"bot": f"Invoices for {matched_client.get('name')}:\n" + "\n".join(invoice_texts)}
 
     if "\n" in user_input:
         lines = [l.strip() for l in user_input.split("\n") if l.strip()]
@@ -192,13 +215,10 @@ def chat_logic(user_input: str, tenant: str):
         ])
 
         post_data("quotation", invoice_payload)
-        product_lines = []
-        for item in items:
-            product_lines.append(
-                f"- {item['product']} (ID: {item.get('product_id', '')})\n"
-                f"  Qty: {item['quantity']} | Price: {item['price']} | Match: {item['match_score']}%"
-            )
-
+        product_lines = [
+            f"- {item['product']} (ID: {item.get('product_id', '')})\n  Qty: {item['quantity']} | Price: {item['price']} | Match: {item['match_score']}%"
+            for item in items
+        ]
         product_details_text = "\n".join(product_lines)
         bot_message = (
             f" Invoice created successfully!\n"
@@ -215,7 +235,9 @@ def chat_logic(user_input: str, tenant: str):
             "Please type one of these:\n"
             "- get all products\n"
             "- get all clients\n"
-            "- create invoice"
+            "- create invoice\n"
+            "- get invoice by client\n"
+            "- get last 5 invoices"
         )
     }
 
@@ -225,7 +247,6 @@ def chat_route():
     user_input = data.get("text", "")
     tenant = data.get("tenant", TENANT_ID)
     return jsonify(chat_logic(user_input, tenant))
-
 
 @app.route("/whatsapp_webhook", methods=["POST"])
 def whatsapp_webhook():
@@ -257,11 +278,9 @@ def whatsapp_webhook():
     send_whatsapp_message(sender_number, bot_text)
     return jsonify({"status": "success", "reply_sent": bot_text})
 
-
 @app.route("/hc", methods=["GET"])
 def health_check():
     return jsonify({"message": " Server is running fine"})
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

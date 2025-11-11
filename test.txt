@@ -7,3 +7,8 @@ https://backend-white-water-1093.fly.dev/api/chatbot/client/tenantId
 pass token key in headers (Chatbot token)
 
 token cb_8a72e5f9b3d1c0e6
+
+
+7107376417
+e5808c2dca184e87868d28fe962121d5f6677825214646f893
+https://7107.api.green-api.com

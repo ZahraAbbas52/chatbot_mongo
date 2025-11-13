@@ -107,14 +107,21 @@ def handle_create_invoice_prompt():
 
 
 def handle_get_last_invoices(tenant):
-    invoices = get_data("quotation", tenant)
-    invoices_sorted = sorted(invoices, key=lambda x: x.get("created_at", ""), reverse=True)[:5]
-    if not invoices_sorted:
+    try:
+        url = f"{BASE_URL}/invoices?last=5"
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        data = response.json().get("data", [])
+    except Exception as e:
+        print(f"Error fetching last 5 invoices: {e}")
+        return jsonify({"bot": "Error fetching invoices from server."})
+
+    if not data:
         return jsonify({"bot": "No invoices found."})
 
     invoice_texts = [
         f"- Invoice: {inv.get('title')} | Client: {inv.get('client_name')} | Total: {inv.get('total_amount')}"
-        for inv in invoices_sorted
+        for inv in data
     ]
     return jsonify({"bot": "Last 5 invoices:\n" + "\n".join(invoice_texts)})
 
@@ -125,16 +132,25 @@ def handle_get_invoice_by_client(client_name, tenant):
     if not matched_client:
         return jsonify({"bot": f"No matching client found for '{client_name}'"})
 
-    invoices = get_data("quotation", tenant)
-    client_invoices = [inv for inv in invoices if inv.get("client_id") == matched_client.get("_id")]
-    if not client_invoices:
+    client_id = matched_client.get("_id")
+    try:
+        url = f"{BASE_URL}/invoice/{client_id}"
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        invoices = response.json().get("data", [])
+    except Exception as e:
+        print(f"Error fetching invoices for client {client_id}: {e}")
+        return jsonify({"bot": "Error fetching client invoices from server."})
+
+    if not invoices:
         return jsonify({"bot": f"No invoices found for client '{matched_client.get('name')}'."})
 
     invoice_texts = [
         f"- Invoice: {inv.get('title')} | Total Amount: {inv.get('total_amount')}"
-        for inv in client_invoices
+        for inv in invoices
     ]
-    return jsonify({"bot": f"Invoices for {matched_client.get('name')}:\n" + "\n".join(invoice_texts)})
+    return jsonify({"bot": f"Invoices for {matched_client.get('name')}:\n" + '\n'.join(invoice_texts)})
+
 
 
 def handle_create_invoice_from_text(user_input, tenant):

@@ -17,3 +17,5 @@ view all clients = /clients
 view last 5 invoices = /invoices?last=5
 view invocies by client = /invoice/:client_id
 create invoice = /invoice
+
+https://backend-white-water-1093.fly.dev/api/chatbot/invoice/:client_id

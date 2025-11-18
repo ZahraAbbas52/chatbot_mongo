@@ -1,6 +1,6 @@
 from collections import OrderedDict
-import requests   # FIXED
-from constants import BASE_URL, HEADERS   # FIXED
+import requests   
+from constants import BASE_URL, HEADERS   
 
 from utils import (
     get_data,
@@ -11,7 +11,6 @@ from utils import (
     create_invoice_on_server
 )
 
-
 def handle_create_invoice_prompt():
     return {
         "bot": (
@@ -21,7 +20,6 @@ def handle_create_invoice_prompt():
             "Product2, Quantity, Price"
         )
     }
-
 
 def handle_get_last_invoices(tenant):
     clients = get_data("client", tenant)

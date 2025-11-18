@@ -19,3 +19,21 @@ view invocies by client = /invoice/:client_id
 create invoice = /invoice
 
 https://backend-white-water-1093.fly.dev/api/chatbot/invoice/:client_id
+
+router.get("/size/:tenant", chatbotController.getSize);
+router.get("/client/:tenant", chatbotController.getClient);
+router.get("/product/:tenant", chatbotController.getProduct);
+router.get("/invoices/:tenant", chatbotController.getLastInvoices);
+router.get("/invoices/:tenant/:client", chatbotController.getQuotationByClient);
+router.post("/chat/:id", chatbotController.chat);
+router.get("/history/:id", chatbotController.history);
+router.post("/quotation", chatbotController.quotation);
+
+
+sequence
+client name 
+clients id 
+date
+totalAmount
+amountReceived
+paymentStatus
